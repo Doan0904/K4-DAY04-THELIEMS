@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
+from providers.retry import call_with_retry
 
 
 def _to_anthropic_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -76,7 +77,8 @@ class AnthropicProvider:
             if tool_choice == "required":
                 kwargs["tool_choice"] = {"type": "any"}
 
-        resp = Anthropic(api_key=api_key).messages.create(**kwargs)
+        client = Anthropic(api_key=api_key)
+        resp = call_with_retry(lambda: client.messages.create(**kwargs), label=kwargs["model"])
         text_parts: list[str] = []
         calls: list[ToolCall] = []
         for block in resp.content:

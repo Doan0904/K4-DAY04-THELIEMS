@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
+from providers.retry import call_with_retry
 
 
 class OpenAIProvider:
@@ -50,7 +51,7 @@ class OpenAIProvider:
         if tool_choice is not None:
             kwargs["tool_choice"] = tool_choice
 
-        resp = client.chat.completions.create(**kwargs)
+        resp = call_with_retry(lambda: client.chat.completions.create(**kwargs), label=kwargs["model"])
         msg = resp.choices[0].message
         calls: list[ToolCall] = []
         for call in msg.tool_calls or []:

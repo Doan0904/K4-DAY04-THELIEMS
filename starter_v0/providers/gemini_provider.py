@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
+from providers.retry import call_with_retry
 
 
 def _to_gemini_declarations(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -32,6 +33,26 @@ def _to_gemini_contents(messages: list[dict[str, str]]) -> tuple[str | None, lis
         elif role == "user":
             contents.append({"role": "user", "parts": [{"text": content}]})
     return ("\n\n".join(system_parts) if system_parts else None), contents
+
+
+# Normalized tool_choice values (as passed by run_eval.py / agent.py) -> Gemini modes.
+_FUNCTION_CALLING_MODES = {
+    "required": "ANY",
+    "auto": "AUTO",
+    "none": "NONE",
+}
+
+
+def _function_calling_mode(tool_choice: Any | None) -> str | None:
+    """Map a provider-neutral tool_choice to a Gemini FunctionCallingConfig mode.
+
+    Returns None when the caller leaves the choice to the model (Gemini default).
+    """
+    if tool_choice is None:
+        return None
+    if isinstance(tool_choice, str) and tool_choice.strip().lower() in _FUNCTION_CALLING_MODES:
+        return _FUNCTION_CALLING_MODES[tool_choice.strip().lower()]
+    raise ValueError(f"Unsupported tool_choice for Gemini: {tool_choice!r}. Use one of {sorted(_FUNCTION_CALLING_MODES)} or None.")
 
 
 def _part_text(part: Any) -> str | None:
@@ -73,10 +94,12 @@ class GeminiProvider:
         self,
         *,
         api_key_env: str = "GEMINI_API_KEY",
-        default_model: str = "gemini-3.5-flash",
+        default_model: str | None = None,
     ) -> None:
         self.api_key_env = api_key_env
-        self.default_model = default_model
+        # Team-wide fixed model so v0-v3 runs stay comparable (paid tier, low cost).
+        # gemini-2.5-flash-lite returns 404 for new users, so the team uses 3.5 Flash-Lite.
+        self.default_model = default_model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     def complete(
         self,
@@ -104,12 +127,18 @@ class GeminiProvider:
             config_kwargs["system_instruction"] = system_instruction
         if declarations:
             config_kwargs["tools"] = [types.Tool(function_declarations=declarations)]
+            mode = _function_calling_mode(tool_choice)
+            if mode is not None:
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(mode=mode)
+                )
 
         client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=model or self.default_model,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
+        selected_model = model or self.default_model
+        config = types.GenerateContentConfig(**config_kwargs)
+        resp = call_with_retry(
+            lambda: client.models.generate_content(model=selected_model, contents=contents, config=config),
+            label=selected_model,
         )
 
         text_parts: list[str] = []
