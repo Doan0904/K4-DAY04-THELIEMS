@@ -73,10 +73,27 @@ class GeminiProvider:
         self,
         *,
         api_key_env: str = "GEMINI_API_KEY",
-        default_model: str = "gemini-3.5-flash",
+        default_model: str = "gemini-3.6-flash",
     ) -> None:
         self.api_key_env = api_key_env
         self.default_model = default_model
+        self._key_index = 0
+
+    def _get_api_keys(self) -> list[str]:
+        import re
+        keys: list[str] = []
+        for var in [self.api_key_env, f"{self.api_key_env}S"]:
+            val = os.getenv(var, "")
+            if val:
+                for k in re.split(r"[,;\n\r]+", val):
+                    k = k.strip()
+                    if k and k not in keys:
+                        keys.append(k)
+        for i in range(1, 21):
+            val = os.getenv(f"{self.api_key_env}_{i}", "").strip()
+            if val and val not in keys:
+                keys.append(val)
+        return keys
 
     def complete(
         self,
@@ -93,8 +110,8 @@ class GeminiProvider:
         except ImportError as exc:
             raise RuntimeError("Install live provider dependency first: pip install google-genai") from exc
 
-        api_key = os.getenv(self.api_key_env)
-        if not api_key:
+        api_keys = self._get_api_keys()
+        if not api_keys:
             raise RuntimeError(f"Missing API key env var: {self.api_key_env}")
 
         system_instruction, contents = _to_gemini_contents(messages)
@@ -105,12 +122,36 @@ class GeminiProvider:
         if declarations:
             config_kwargs["tools"] = [types.Tool(function_declarations=declarations)]
 
-        client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=model or self.default_model,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
+        import time
+        import re
+
+        resp = None
+        max_attempts = max(len(api_keys) * 2, 4)
+        for attempt in range(max_attempts):
+            current_key = api_keys[self._key_index % len(api_keys)]
+            self._key_index += 1
+            masked_key = current_key[:6] + "..." + current_key[-4:] if len(current_key) > 10 else "***"
+            try:
+                client = genai.Client(api_key=current_key)
+                resp = client.models.generate_content(
+                    model=model or self.default_model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                )
+                break
+            except Exception as exc:
+                err_str = str(exc)
+                if ("429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str) and attempt < max_attempts - 1:
+                    # If multiple keys available, immediately try next key without sleep
+                    if len(api_keys) > 1 and attempt < len(api_keys):
+                        print(f" [Key {masked_key} hit rate/server limit, switching to next key instantly...] ", flush=True)
+                        continue
+                    match = re.search(r"retry in ([0-9.]+)s", err_str)
+                    wait_time = float(match.group(1)) + 1.0 if match else 10.0
+                    print(f" [Rate/Server limit on all keys, waiting {wait_time:.1f}s...] ", flush=True)
+                    time.sleep(wait_time)
+                else:
+                    raise
 
         text_parts: list[str] = []
         calls: list[ToolCall] = []
