@@ -105,3 +105,25 @@ tools:
         asset_id: {type: string, default: "", description: "Mã tài sản nếu có"}
         confirmed: {type: boolean, default: false, description: "Đã được người dùng xác nhận"}
       required: [summary]
+
+  # ---------------- Team Bonus tools ----------------
+  - name: lookup_ticket_status
+    description: "Tra cứu tiến độ xử lý, trạng thái, mức độ ưu tiên, người phụ trách và ghi chú kỹ thuật của một ticket hoặc incident theo mã ticket_id (ví dụ INC-1042, LAB-XXXXXXXX). Dùng khi người dùng hỏi tiến độ hoặc trạng thái ticket đã có."
+    parameters:
+      type: object
+      properties:
+        ticket_id: {type: string, description: "Mã ticket hoặc incident cần tra cứu, ví dụ INC-1042 hoặc LAB-XXXXXXXX"}
+      required: [ticket_id]
+
+  - name: update_ticket
+    description: "Cập nhật mức độ ưu tiên (priority), trạng thái (status) hoặc thêm ghi chú kỹ thuật (note) cho ticket đã có. Chỉ thực hiện khi confirmed=true sau khi người dùng đã xác nhận rõ ràng."
+    parameters:
+      type: object
+      properties:
+        ticket_id: {type: string, description: "Mã ticket cần cập nhật, ví dụ INC-1042"}
+        priority: {type: string, enum: [low, medium, high, critical], description: "Mức ưu tiên mới"}
+        status: {type: string, enum: [open, in_progress, pending_user, resolved, closed], description: "Trạng thái mới"}
+        note: {type: string, description: "Ghi chú kỹ thuật bổ sung"}
+        confirmed: {type: boolean, default: false, description: "Đã được người dùng xác nhận rõ ràng"}
+      required: [ticket_id]
+

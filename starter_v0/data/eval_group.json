@@ -1,7 +1,285 @@
 {
   "dataset_id": "day04_v3_helpdesk_group",
   "dataset_role": "group",
-  "description": "Template intentionally left empty. The team must write exactly 10 original IT helpdesk cases: 5 single-turn query cases and 5 multi-turn turns cases.",
-  "allowed_failure_types": ["wrong_tool", "wrong_arg_value", "wrong_boundary", "unnecessary_tool", "out_of_scope", "missing_info"],
-  "cases": []
+  "description": "Original team eval cases. Includes dedicated cases for bonus tools lookup_ticket_status and update_ticket, plus core boundary cases (5 single-turn + 5 multi-turn).",
+  "allowed_failure_types": [
+    "wrong_tool",
+    "wrong_arg_value",
+    "wrong_boundary",
+    "unnecessary_tool",
+    "out_of_scope",
+    "missing_info"
+  ],
+  "cases": [
+    {
+      "id": "G01_lookup_ticket_status",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tiến độ xử lý sự cố INC-1042 của tôi tới đâu rồi?",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "lookup_ticket_status",
+            "args": {
+              "ticket_id": "INC-1042"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "bonus_lookup_ticket",
+        "difficulty": "medium",
+        "what_it_tests": "Tra cứu tiến độ ticket đã có phải dùng lookup_ticket_status."
+      }
+    },
+    {
+      "id": "G02_lookup_ticket_missing_id",
+      "phase": "B",
+      "suite": "group",
+      "query": "Kiểm tra tiến độ ticket sự cố mạng hôm qua của mình với.",
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "text"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "clarify_missing_ticket_id",
+        "difficulty": "medium",
+        "what_it_tests": "Hỏi trạng thái ticket nhưng thiếu ticket_id phải gọi clarify, không tự đoán."
+      }
+    },
+    {
+      "id": "G03_confirmed_update_ticket",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tôi xác nhận cập nhật ticket INC-1042: chuyển priority từ high thành critical.",
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "update_ticket",
+            "args": {
+              "ticket_id": "INC-1042",
+              "priority": "critical",
+              "confirmed": true
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "bonus_update_ticket_confirmed",
+        "difficulty": "hard",
+        "what_it_tests": "Có xác nhận rõ ràng thì update_ticket được phép chạy với confirmed=true."
+      }
+    },
+    {
+      "id": "G04_device_hardware_check",
+      "phase": "B",
+      "suite": "group",
+      "query": "Kiểm tra phần cứng của máy để bàn DT-031.",
+      "failure_type": "wrong_arg_value",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "inspect_device",
+            "args": {
+              "asset_id": "DT-031",
+              "check": "hardware"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "device_hardware_arg",
+        "difficulty": "easy",
+        "what_it_tests": "Trích đúng asset_id DT-031 và check=hardware."
+      }
+    },
+    {
+      "id": "G05_out_of_scope_cooking",
+      "phase": "B",
+      "suite": "group",
+      "query": "Chỉ cho tôi công thức nấu món phở bò truyền thống.",
+      "failure_type": "out_of_scope",
+      "expect": {
+        "no_tool": true
+      },
+      "metadata": {
+        "skill": "out_of_scope",
+        "difficulty": "easy",
+        "what_it_tests": "Yêu cầu ẩm thực ngoài phạm vi IT Helpdesk không được gọi tool."
+      }
+    },
+    {
+      "id": "G06_multi_update_confirm_flow",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Chuyển ticket INC-1088 từ priority medium thành high."
+        },
+        {
+          "role": "user",
+          "content": "Thông tin chính xác rồi, tôi xác nhận cập nhật."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "update_ticket",
+            "args": {
+              "ticket_id": "INC-1088",
+              "priority": "high",
+              "confirmed": true
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "bonus_multiturn_update_ticket",
+        "difficulty": "hard",
+        "what_it_tests": "Xác nhận ở lượt 2 kích hoạt update_ticket với thông tin từ lượt 1."
+      }
+    },
+    {
+      "id": "G07_multi_update_stale_confirmation",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Cập nhật ticket INC-1042 sang priority critical."
+        },
+        {
+          "role": "user",
+          "content": "À khoan, đổi thành priority high thôi."
+        },
+        {
+          "role": "user",
+          "content": "Hãy cho mình xem lại và hỏi xác nhận trước khi thực hiện."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "yes_no"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_stale_confirmation_update",
+        "difficulty": "hard",
+        "what_it_tests": "Đổi tham số giữa chừng thì phải dừng ở confirmation boundary bằng clarify."
+      }
+    },
+    {
+      "id": "G08_multi_lookup_then_update",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tra cứu sự cố INC-1099 xem trạng thái là gì."
+        },
+        {
+          "role": "user",
+          "content": "Máy in đã xong rồi, tôi xác nhận đổi status của INC-1099 thành closed."
+        }
+      ],
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "update_ticket",
+            "args": {
+              "ticket_id": "INC-1099",
+              "status": "closed",
+              "confirmed": true
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "lookup_then_update_ticket",
+        "difficulty": "hard",
+        "what_it_tests": "Tra cứu ticket trước rồi cập nhật trạng thái ở lượt sau khi có xác nhận."
+      }
+    },
+    {
+      "id": "G09_multi_correct_employee",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tra cứu thông tin nhân viên EMP-1002."
+        },
+        {
+          "role": "user",
+          "content": "Nhầm rồi, tra nhân viên EMP-1005."
+        },
+        {
+          "role": "user",
+          "content": "Cho biết tài sản máy móc cấp cho người này."
+        }
+      ],
+      "failure_type": "wrong_arg_value",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "lookup_user",
+            "args": {
+              "employee_id": "EMP-1005"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_employee_correction",
+        "difficulty": "medium",
+        "what_it_tests": "Mã nhân viên sửa ở lượt sau phải ghi đè mã nhân viên ở lượt trước."
+      }
+    },
+    {
+      "id": "G10_multi_cancellation",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Kiểm tra đường truyền VPN staging."
+        },
+        {
+          "role": "user",
+          "content": "Thôi tôi đổi ý rồi, không cần kiểm tra nữa."
+        },
+        {
+          "role": "user",
+          "content": "Bạn hãy giới thiệu ngắn gọn khả năng của mình."
+        }
+      ],
+      "failure_type": "unnecessary_tool",
+      "expect": {
+        "no_tool": true
+      },
+      "metadata": {
+        "skill": "multiturn_cancellation",
+        "difficulty": "easy",
+        "what_it_tests": "Yêu cầu đã hủy thì không được gọi tool kiểm tra VPN cũ nữa."
+      }
+    }
+  ]
 }

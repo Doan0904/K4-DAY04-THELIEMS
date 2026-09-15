@@ -1,0 +1,38 @@
+{
+  "snapshot_at": "2026-09-14T09:00:00+07:00",
+  "tickets": [
+    {
+      "ticket_id": "INC-1042",
+      "summary": "Intermittent authentication failures for some Windows clients on VPN",
+      "priority": "critical",
+      "status": "in_progress",
+      "assigned_to": "Network Operations Team",
+      "asset_id": "LT-204",
+      "created_at": "2026-09-14T07:35:00+07:00",
+      "updated_at": "2026-09-15T12:39:22.790430+00:00",
+      "technical_notes": "Workaround applied: sync device clock. Investigating auth timeout on radius cluster."
+    },
+    {
+      "ticket_id": "INC-1088",
+      "summary": "Outlook sync error 0x80040115 on Windows 11",
+      "priority": "medium",
+      "status": "pending_user",
+      "assigned_to": "Client Support Tier 2",
+      "asset_id": "LT-240",
+      "created_at": "2026-09-14T10:15:00+07:00",
+      "updated_at": "2026-09-14T11:00:00+07:00",
+      "technical_notes": "Waiting for user to confirm profile re-creation."
+    },
+    {
+      "ticket_id": "INC-1099",
+      "summary": "Printer PR-002 paper jam sensor failure",
+      "priority": "low",
+      "status": "resolved",
+      "assigned_to": "Facilities & Hardware",
+      "asset_id": "PR-002",
+      "created_at": "2026-09-13T14:20:00+07:00",
+      "updated_at": "2026-09-13T16:45:00+07:00",
+      "technical_notes": "Replaced pickup roller and cleaned sensor."
+    }
+  ]
+}
