@@ -73,58 +73,44 @@ def update_ticket(
 
     try:
         now_iso = datetime.now(timezone.utc).isoformat()
-        
-        # 1. Check in helpdesk_data/tickets.json
-        if TICKET_DATA_FILE.exists():
+
+        # Base record: local ticket store first (created tickets / earlier updates),
+        # otherwise the read-only fixture. The fixture file is never modified.
+        ticket_file = LOCAL_TICKET_DIR / f"{normalized_id}.json"
+        ticket: dict[str, Any] | None = None
+        if ticket_file.exists():
+            ticket = json.loads(ticket_file.read_text(encoding="utf-8"))
+        elif TICKET_DATA_FILE.exists():
             data = json.loads(TICKET_DATA_FILE.read_text(encoding="utf-8"))
-            for ticket in data.get("tickets", []):
-                if ticket.get("ticket_id", "").upper() == normalized_id:
-                    before = dict(ticket)
-                    if normalized_priority:
-                        ticket["priority"] = normalized_priority
-                    if normalized_status:
-                        ticket["status"] = normalized_status
-                    if normalized_note:
-                        old_notes = ticket.get("technical_notes", "")
-                        ticket["technical_notes"] = f"{old_notes} | {normalized_note}" if old_notes else normalized_note
-                    ticket["updated_at"] = now_iso
-                    TICKET_DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-                    return {
-                        "tool": "update_ticket",
-                        "status": "updated",
-                        "ticket_id": normalized_id,
-                        "before": before,
-                        "after": ticket,
-                    }
+            ticket = next((dict(t) for t in data.get("tickets", []) if t.get("ticket_id", "").upper() == normalized_id), None)
 
-        # 2. Check in tickets/*.json
-        if LOCAL_TICKET_DIR.exists():
-            ticket_file = LOCAL_TICKET_DIR / f"{normalized_id}.json"
-            if ticket_file.exists():
-                ticket = json.loads(ticket_file.read_text(encoding="utf-8"))
-                before = dict(ticket)
-                if normalized_priority:
-                    ticket["priority"] = normalized_priority
-                if normalized_status:
-                    ticket["status"] = normalized_status
-                if normalized_note:
-                    old_notes = ticket.get("technical_notes", "")
-                    ticket["technical_notes"] = f"{old_notes} | {normalized_note}" if old_notes else normalized_note
-                ticket["updated_at"] = now_iso
-                ticket_file.write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
-                return {
-                    "tool": "update_ticket",
-                    "status": "updated",
-                    "ticket_id": normalized_id,
-                    "before": before,
-                    "after": ticket,
-                }
+        if ticket is None:
+            return {
+                "tool": "update_ticket",
+                "error": "ticket_not_found",
+                "ticket_id": normalized_id,
+                "message": f"No ticket found with ID {normalized_id}",
+            }
 
+        before = dict(ticket)
+        if normalized_priority:
+            ticket["priority"] = normalized_priority
+        if normalized_status:
+            ticket["status"] = normalized_status
+        if normalized_note:
+            old_notes = ticket.get("technical_notes", "")
+            ticket["technical_notes"] = f"{old_notes} | {normalized_note}" if old_notes else normalized_note
+        ticket["updated_at"] = now_iso
+
+        LOCAL_TICKET_DIR.mkdir(parents=True, exist_ok=True)
+        ticket_file.write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
         return {
             "tool": "update_ticket",
-            "error": "ticket_not_found",
+            "status": "updated",
             "ticket_id": normalized_id,
-            "message": f"No ticket found with ID {normalized_id}",
+            "before": before,
+            "after": ticket,
+            "path": str(ticket_file),
         }
     except Exception as exc:
         return err("update_ticket", exc)
