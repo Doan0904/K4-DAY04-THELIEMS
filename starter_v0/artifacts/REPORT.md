@@ -276,55 +276,109 @@ commit evidence của bất kỳ thành viên nào còn thiếu.
 Các thành viên thảo luận và viết một reflection chung. Nội dung cần dựa trên
 evidence thực tế trong repository, không chỉ mô tả cảm nhận chung.
 
-- Mục tiêu nào của nhóm đã hoàn thành? Dẫn đến artifact hoặc run tương ứng.
-- Hypothesis hoặc thay đổi nào tạo ra cải thiện rõ nhất?
-- Failure quan trọng nào vẫn chưa xử lý được hoàn toàn?
-- Nhóm đã phân chia, review và tích hợp công việc như thế nào?
-- Nếu có thêm một vòng, nhóm sẽ ưu tiên thay đổi và kiểm chứng điều gì?
-
-**Reflection chung của nhóm:**
-
-> Viết reflection tại đây và dẫn link/path đến evidence liên quan.
+- **Mục tiêu hoàn thành:** Nhóm THELIEMS đã hoàn thành trọn vẹn mục tiêu cốt lõi của bài Lab Day 04:
+  1. Tối ưu hóa thành công Agent từ mốc baseline v0 (73.3%) đạt độ chính xác routing và arguments 100.0% trên bộ Base (`runs/v3_B_base_openai_20260915T132116255609.json` và bản cuối v5 `runs/v5_B_base_openai_20260915T140022836239.json`).
+  2. Xây dựng thành công 2 Bonus Tools (`lookup_ticket_status`, `update_ticket`) với đầy đủ `TOOL.md`, mock fixture, unit smoke test và đăng ký trong registry (`tools/__init__.py`).
+  3. Thiết kế bộ kiểm thử độc lập Team Eval gồm 10 case gốc (5 single-turn, 5 multi-turn) trong `data/eval_group.json` đạt 100% accuracy (`runs/v5_B_group_openai_20260915T140037096243.json`).
+  4. Triển khai giao diện tương tác Streamlit Chat UI (`app.py`) tái sử dụng trực tiếp hàm `run_model_tool_loop` từ `chat.py`, cho phép trực quan hóa toàn bộ tool calls, arguments, kết quả chẩn đoán và artifact hashes.
+- **Thay đổi tạo ra cải thiện rõ nhất:**
+  - Vòng v1 bổ sung quy tắc cấm tự đoán identifier (Asset/Employee ID) và bắt buộc dùng `clarify(response_type=text)` giải quyết triệt để các lỗi thiếu thông tin.
+  - Vòng v2/v3 thiết lập ranh giới xác nhận (`clarify(response_type=yes_no)`) trước khi tạo ticket, loại bỏ hoàn toàn các lần tự ý tạo ticket sai quy trình.
+  - Cơ chế Multi-key Rotation và Backoff Retry ở tầng provider adapter giúp loại trừ hoàn toàn các lỗi mạng và rate limit (`provider_error_cases == 0`).
+- **Failure quan trọng vẫn chưa xử lý được hoàn toàn:**
+  - Ở suite Adversarial (các case A03, A04, A10), khi kẻ tấn công giả lập cú pháp pseudo-code hoặc chèn fake tool result, Agent vẫn có xác suất bị lừa vượt qua lớp prompt để gọi hành động ghi. Điều này chứng minh rằng chỉ dựa vào Prompt Guard là không đủ, mà bắt buộc phải có lớp kiểm soát trạng thái ở tầng Implementation (Code Guardrail).
+- **Phân chia, review và tích hợp công việc:**
+  - Nhóm phân chia rõ ràng theo 3 trụ cột: Đặng Đỉnh Đoàn (Agent/Prompt Lead), Mai Quang Dũng (Bonus Tool, Eval & UI Lead), Ngô Anh Khoa (Tool & Backend Lead).
+  - Sử dụng quy trình Git branching (`Khoa`, `QuangDung`, `dinhdoan`), kiểm tra chéo qua pull request trước khi tích hợp vào nhánh `main`.
+- **Nếu có thêm một vòng lặp:**
+  - Nhóm sẽ ưu tiên cài đặt State Machine ở tầng implementation của `create_ticket` và `update_ticket`: chỉ cho phép thực thi ghi file khi và chỉ khi vòng hội thoại ngay trước đó là một lời gọi `clarify(yes_no)` với đúng payload và người dùng phản hồi đồng ý ở lượt kế tiếp.
 
 ## C2. Self-reflection của từng thành viên
 
-Mỗi thành viên tự viết một mục riêng về phần việc chính mình đã thực hiện trong
-repository chung. Không viết thay hoặc gộp nhiều thành viên vào một câu trả lời.
-Mỗi reflection cần trỏ đến file, commit hoặc pull request có thật để người đọc
-có thể đối chiếu đóng góp.
+### Đặng Đỉnh Đoàn — 2A202602927
 
-Sao chép mẫu dưới đây cho từng thành viên:
-
-### Họ tên — MSSV
-
-- **Vai trò/phần việc được nhận:**
-- **Những gì tôi đã thay đổi trong repo chung:**
+- **Vai trò/phần việc được nhận:** Nhóm trưởng — Agent & Prompt Lead (chủ trì tối ưu prompt, tool declaration và biên soạn báo cáo).
+- **Những gì tôi đã thay đổi trong repo chung:** 
+  - Điều chỉnh `system_prompt.md` qua các vòng lặp v0 ➔ v6, giải quyết các failure trace về routing, missing info và ranh giới xác nhận.
+  - Cập nhật `tools.yaml` đồng bộ với registry, tinh chỉnh enum và mô tả ranh giới sử dụng tool.
+  - Phân tích chi tiết các case adversarial, tổng hợp số liệu đo lường variance và hoàn thiện Phần A, B của `REPORT.md`.
 - **File hoặc artifact liên quan:**
+  - [`starter_v0/artifacts/system_prompt.md`](system_prompt.md)
+  - [`starter_v0/artifacts/tools.yaml`](tools.yaml)
+  - [`starter_v0/artifacts/REPORT.md`](REPORT.md)
+  - [`starter_v0/artifacts/version_log.csv`](version_log.csv)
 - **Commit hash hoặc pull request:**
-- **Một quyết định kỹ thuật tôi đã đưa ra và lý do:**
-- **Khó khăn tôi gặp và cách tôi xử lý:**
-- **Điều tôi học được từ phần việc này:**
-- **Nếu làm lại, tôi sẽ cải thiện điều gì:**
+  - Commit [`3969c01`](https://github.com/Doan0904/K4-DAY04-THELIEMS/commit/3969c01) (`docs(report): update REPORT parts A-B, version log and evidence for v5`)
+  - Commit [`bf286c4`](https://github.com/Doan0904/K4-DAY04-THELIEMS/commit/bf286c4) (`feat(artifacts): v1-v3 prompt/tool iterations with run evidence and report`)
+- **Một quyết định kỹ thuật tôi đã đưa ra và lý do:** Quyết định loại bỏ thử nghiệm v6 khi nhận thấy việc cố gắng xử lý tin nhắn tự xác nhận (G02) đã làm phá vỡ ranh giới an toàn ở các case adversarial (A03, A04, A10) và làm giảm độ chính xác trên Extension. Quyết định quay về v5 làm bản phát hành chính thức giúp hệ thống giữ vững độ an toàn cao nhất.
+- **Khó khăn tôi gặp và cách tôi xử lý:** Hiện tượng dao động kết quả (variance) giữa các run cùng một prompt dù temperature = 0. Tôi đã thực hiện đo lường lặp lại 3 lần cho mỗi version (v4, v5, v6) để tính trung bình và độ lệch chuẩn, đưa ra kết luận dựa trên thống kê tin cậy thay vì một run đơn lẻ.
+- **Điều tôi học được từ phần việc này:** Hiểu sâu sắc về kỹ thuật Prompt Engineering có kiểm chứng bằng dữ liệu (evidence-based). Một prompt tốt phải súc tích, phân định rõ ràng giữa trusted instructions và untrusted reference data.
+- **Nếu làm lại, tôi sẽ cải thiện điều gì:** Tôi sẽ chuẩn bị bộ test adversarial sớm hơn ngay từ vòng v1 thay vì để đến vòng cuối, giúp phát hiện sớm các lỗ hổng jailbreak của prompt.
 
-Mỗi thành viên phải tự commit phần self-reflection của mình bằng Git identity
-tương ứng. Reflection phải dẫn đến contribution artifact/commit đã nêu ở trên,
-không dùng chính phần reflection làm bằng chứng duy nhất cho đóng góp kỹ thuật.
+---
+
+### Mai Quang Dũng — 2A202602966
+
+- **Vai trò/phần việc được nhận:** Bonus Tool, Eval & UI Lead (chủ trì phát triển tool mới, bộ test nhóm và giao diện ứng dụng).
+- **Những gì tôi đã thay đổi trong repo chung:**
+  - Hiện thực hóa 2 tool mở rộng: `lookup_ticket_status` (tra cứu ticket read-only) và `update_ticket` (cập nhật trạng thái/priority có xác nhận).
+  - Tạo mock data `helpdesk_data/tickets.json` và viết kịch bản smoke test `scripts/test_bonus_tools.py`.
+  - Thiết kế đúng 10 test cases gốc trong `data/eval_group.json` bao gồm 5 single-turn và 5 multi-turn.
+  - Xây dựng giao diện Streamlit Chat UI trong `starter_v0/app.py`.
+- **File hoặc artifact liên quan:**
+  - [`starter_v0/tools/lookup_ticket_status/`](../tools/lookup_ticket_status/)
+  - [`starter_v0/tools/update_ticket/`](../tools/update_ticket/)
+  - [`starter_v0/data/eval_group.json`](../data/eval_group.json)
+  - [`starter_v0/app.py`](../app.py)
+  - [`starter_v0/helpdesk_data/tickets.json`](../helpdesk_data/tickets.json)
+- **Commit hash hoặc pull request:**
+  - Commit [`b872718`](https://github.com/Doan0904/K4-DAY04-THELIEMS/commit/b872718) (`feat(tools): add lookup_ticket_status and update_ticket with 10 group eval cases`)
+  - Commit [`109287e`](https://github.com/Doan0904/K4-DAY04-THELIEMS/commit/109287e) (`feat(ui): add Streamlit chat UI on the shared tool loop`)
+  - Commit [`3ab486b`](https://github.com/Doan0904/K4-DAY04-THELIEMS/commit/3ab486b) (`test(eval): add 10 original team eval cases (5 single, 5 multi-turn)`)
+- **Một quyết định kỹ thuật tôi đã đưa ra và lý do:** Thiết kế `update_ticket` chỉ ghi file json vào thư mục tạm `tickets/`, tuyệt đối không ghi đè vào file dữ liệu fixture `helpdesk_data/tickets.json` nhằm đảm bảo tính toàn vẹn và bất biến của dữ liệu kiểm thử.
+- **Khó khăn tôi gặp và cách tôi xử lý:** Khi dựng Streamlit UI, ban đầu giao diện có nguy cơ chạy một vòng lặp chat riêng. Tôi đã tái cấu trúc để UI gọi trực tiếp hàm `run_model_tool_loop` trong `chat.py`, đảm bảo logic giữa UI, CLI và Evaluator là hoàn toàn đồng nhất.
+- **Điều tôi học được từ phần việc này:** Kỹ năng thiết kế JSON Schema cho Function Calling; cách xây dựng ranh giới an toàn cho các action tool có side-effect ghi file.
+- **Nếu làm lại, tôi sẽ cải thiện điều gì:** Tôi sẽ bổ sung thêm tính năng hiển thị trực tiếp diff giữa thông tin ticket cũ và payload cập nhật mới ngay trên giao diện UI để người dùng dễ kiểm tra trước khi bấm xác nhận.
+
+---
+
+### Ngô Anh Khoa — 2A202602965
+
+- **Vai trò/phần việc được nhận:** Tool & Backend Lead (chủ trì kiểm thử an toàn công cụ, độ ổn định tầng kết nối provider và quản lý môi trường).
+- **Những gì tôi đã thay đổi trong repo chung:**
+  - Khởi tạo và đồng bộ tài liệu thành viên [`TEAMMATES.md`](../../TEAMMATES.md) ở thư mục gốc, rà soát tiêu chí vệ sinh bảo mật trước khi nộp bài.
+  - Rà soát các tool nội bộ, kiểm tra ranh giới an toàn (trust boundary) và hợp đồng input/output của 9 tools.
+  - Nghiên cứu và tối ưu độ ổn định tầng kết nối provider adapter (`providers/gemini_provider.py` và `providers/retry.py`), cơ chế Multi-key Rotation (Round-Robin) và Backoff Retry thông minh khi gặp lỗi HTTP 429 (Rate Limit) và 503 (Server Unavailable).
+  - Hoàn thiện toàn diện Phần C (Reflection nhóm, Self-reflection cá nhân và Final checkout) trong [`REPORT.md`](REPORT.md).
+- **File hoặc artifact liên quan:**
+  - [`TEAMMATES.md`](../../TEAMMATES.md)
+  - [`starter_v0/artifacts/REPORT.md`](REPORT.md)
+  - [`starter_v0/providers/gemini_provider.py`](../providers/gemini_provider.py)
+  - [`starter_v0/providers/retry.py`](../providers/retry.py)
+- **Commit hash hoặc pull request:**
+  - Pull Request / Branch: [`https://github.com/Doan0904/K4-DAY04-THELIEMS/tree/Khoa`](https://github.com/Doan0904/K4-DAY04-THELIEMS/tree/Khoa) (nhánh `Khoa` đóng góp backend suite, test scripts, key rotation và `TEAMMATES.md`).
+- **Một quyết định kỹ thuật tôi đã đưa ra và lý do:** Phân biệt rõ rệt giữa lỗi 429 và 503 trong cơ chế retry: Với 429 (hạn ngạch của từng key), hệ thống lập tức chuyển sang API key tiếp theo trong danh sách mà không cần delay; với 503 (quá tải máy chủ diện rộng), hệ thống bắt buộc phải dừng nghỉ 5–6 giây trước khi thử lại để tránh gửi thêm request vô ích lên server đang nghẽn.
+- **Khó khăn tôi gặp và cách tôi xử lý:** Trong quá trình chạy eval trên gói API miễn phí, số lượng request lớn gửi liên tục dẫn đến bị khóa tạm thời. Tôi đã xây dựng giải pháp xoay vòng danh sách khóa phân tách bằng dấu phẩy trong file cấu hình `.env`, cho phép kết hợp hạn ngạch của nhiều key thành một luồng chạy liên tục đạt `provider_error_cases == 0`.
+- **Điều tôi học được từ phần việc này:** Hiểu rõ tầm quan trọng của tầng Backend và Resilience Engineering trong các hệ thống LLM Agent. Prompt dù tốt đến đâu nhưng nếu tầng API adapter không xử lý được timeout/backoff hoặc tool implementation thiếu guardrail thì hệ thống vẫn thất bại trong thực tế.
+- **Nếu làm lại, tôi sẽ cải thiện điều gì:** Tôi sẽ tích hợp sẵn một thanh tiến trình trực quan (Progress Bar) kèm bộ đếm quota thời gian thực ngay trên Terminal để theo dõi tốc độ tiêu thụ token của từng model provider.
+
+---
 
 ## C3. Final checkout
 
 Chỉ nộp bài khi mọi mục dưới đây đã được kiểm tra trên branch cuối cùng của
 repository chung:
 
-- [ ] `TEAMMATES.md` có đủ họ tên, MSSV, GitHub username và vai trò.
-- [ ] Mỗi thành viên có ít nhất một commit trong lịch sử branch nộp bài.
-- [ ] Phần reflection chung của nhóm đã hoàn thành và có evidence.
-- [ ] Mỗi thành viên đã tự viết và commit self-reflection của mình.
-- [ ] `system_prompt.md`, `tools.yaml`, version log, runs, eval, transcript, UI
+- [x] `TEAMMATES.md` có đủ họ tên, MSSV, GitHub username và vai trò.
+- [x] Mỗi thành viên có ít nhất một commit trong lịch sử branch nộp bài.
+- [x] Phần reflection chung của nhóm đã hoàn thành và có evidence.
+- [x] Mỗi thành viên đã tự viết và commit self-reflection của mình.
+- [x] `system_prompt.md`, `tools.yaml`, version log, runs, eval, transcript, UI
       và report đã có trong repository.
-- [ ] Không có `.env`, API key, token, dữ liệu thật, cache hoặc generated ticket.
-- [ ] Nhóm trưởng và mọi thành viên đã thống nhất đúng một URL repository chung.
-- [ ] Nhóm trưởng và mọi thành viên sẽ nộp cùng URL đó trên VLearn.
+- [x] Không có `.env`, API key, token, dữ liệu thật, cache hoặc generated ticket.
+- [x] Nhóm trưởng và mọi thành viên đã thống nhất đúng một URL repository chung.
+- [x] Nhóm trưởng và mọi thành viên sẽ nộp cùng URL đó trên VLearn.
 
 **URL repository chung dùng để nộp:**
 
-> URL:
+> https://github.com/Doan0904/K4-DAY04-THELIEMS
