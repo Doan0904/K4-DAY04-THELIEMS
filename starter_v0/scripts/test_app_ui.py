@@ -64,7 +64,7 @@ class StreamlitAppTest(unittest.TestCase):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)
         app.run()
         self.assertFalse(app.exception, app.exception)
-        self.assertTrue(any(code.value.startswith("v3+p") for code in app.code), "artifact version not shown")
+        self.assertTrue(any(code.value.startswith("v5+p") for code in app.code), "artifact version not shown")
 
         app.chat_input[0].set_value("VPN production và LT-999 lỗi").run()
         self.assertFalse(app.exception, app.exception)
@@ -81,7 +81,7 @@ class StreamlitAppTest(unittest.TestCase):
         self.assertEqual(len(files), 1)
         transcript = json.loads(files[0].read_text(encoding="utf-8"))
         self.assertEqual(transcript["client"], "streamlit")
-        self.assertTrue(transcript["artifact_version"].startswith("v3+p"))
+        self.assertTrue(transcript["artifact_version"].startswith("v5+p"))
         self.assertEqual(transcript["turns"][0]["status"], "answered")
         self.assertEqual(transcript["turns"][0]["rounds"][0]["tool_calls"][1]["args"]["asset_id"], "LT-999")
 

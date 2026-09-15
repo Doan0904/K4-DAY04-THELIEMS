@@ -93,7 +93,7 @@ st.set_page_config(page_title="IT Helpdesk Agent", page_icon="🛠️", layout="
 with st.sidebar:
     st.header("Configuration")
     provider_name = st.selectbox("Provider", PROVIDERS, index=0)
-    version = st.text_input("Artifact version label", value="v3")
+    version = st.text_input("Artifact version label", value="v5")
     model_override = st.text_input("Model override (optional)", value="").strip() or None
     history_window = int(st.number_input("History window (user/assistant pairs)", min_value=0, max_value=20, value=5))
     max_tool_rounds = int(st.number_input("Max tool rounds", min_value=1, max_value=8, value=4))
